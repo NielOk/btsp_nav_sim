@@ -1,8 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from grid_cell import GridCell
 
-from grid_cell import GridCell  # assumes you saved your class in grid_cell.py
+
+def fire_at(self, x, y):
+    prob = min(self.activation(x, y), 1.0)
+    return np.random.rand() < prob
+
+if not hasattr(GridCell, "fire_at"):
+    GridCell.fire_at = fire_at
 
 
 def simulate_firing(grid_cell, x_vals, y_vals, trials_per_point):
@@ -40,7 +47,15 @@ def plot_distributions(num_cells, x_bounds, y_bounds, spacing_bounds, std_bounds
         std = np.random.uniform(*std_bounds)
         phase_x = np.random.uniform(0, spacing)
         phase_y = np.random.uniform(0, spacing * np.sin(np.pi / 3))
-        grid_cells.append(GridCell(spacing, std, phase_x, phase_y, bounds=(*x_bounds, *y_bounds)))
+
+        center = ((x_bounds[0] + x_bounds[1]) / 2 + phase_x,
+                  (y_bounds[0] + y_bounds[1]) / 2 + phase_y)
+
+        cell = GridCell(spacing=spacing, std=std,
+                        phase_offset_x=0.0, phase_offset_y=0.0,
+                        bounds=(*x_bounds, *y_bounds),
+                        center=center)
+        grid_cells.append(cell)
 
     x_vals = np.linspace(*x_bounds, grid_res)
     y_vals = np.linspace(*y_bounds, grid_res)
@@ -71,16 +86,6 @@ def plot_distributions(num_cells, x_bounds, y_bounds, spacing_bounds, std_bounds
     return grid_cells
 
 
-# Add fire_at() method directly to your GridCell if it's not already there:
-def fire_at(self, x, y):
-    prob = min(self.activation(x, y), 1.0)
-    return np.random.rand() < prob
-
-# Dynamically patch GridCell if needed
-if not hasattr(GridCell, "fire_at"):
-    GridCell.fire_at = fire_at
-
-
 if __name__ == '__main__':
     num_cells = 5
     x_bounds = (-5, 5)
@@ -90,4 +95,6 @@ if __name__ == '__main__':
     grid_res = 50
     trials_per_point = 50
 
-    plot_distributions(num_cells, x_bounds, y_bounds, spacing_bounds, std_bounds, grid_res, trials_per_point)
+    plot_distributions(num_cells, x_bounds, y_bounds,
+                       spacing_bounds, std_bounds,
+                       grid_res, trials_per_point)
