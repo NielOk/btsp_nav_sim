@@ -1,7 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+
 from grid_cell import GridCell
 from place_cell import PlaceCell
+from ca_1 import Ca1
 
 def generate_circle_path(radius, num_steps_per_lap, laps=1):
     total_steps = num_steps_per_lap * laps
@@ -50,10 +52,14 @@ def simulate_mouse_and_cells(num_place_cells=3, num_grid_cells=2, num_steps_per_
         step_firings = {"t": t, "x": x, "y": y, "place": [], "grid": []}
         for i, pc in enumerate(place_cells):
             if pc.fire_at(x, y):
-                step_firings["place"].append(f"P{i}")
+                step_firings["place"].append(1)
+            else:
+                step_firings["place"].append(0)
         for i, gc in enumerate(grid_cells):
             if gc.fire_at(x, y):
-                step_firings["grid"].append(f"G{i}")
+                step_firings["grid"].append(1)
+            else:
+                step_firings["grid"].append(0)
         log.append(step_firings)
 
     return log, place_cells, grid_cells, x_path, y_path, bounds
@@ -99,10 +105,22 @@ def plot_cells_and_path(place_cells, grid_cells, x_path, y_path, bounds, resolut
     plt.tight_layout()
     plt.show()
 
-# Run it all
-if __name__ == "__main__":
+def plot_ca1_activity(ca1_activity, x_path, y_path, bounds):
+    # --- Plot activity over space ---
+    plt.figure(figsize=(6, 6))
+    plt.scatter(x_path, y_path, c=ca1_activity, cmap='hot', s=20)
+    plt.colorbar(label='CA1 firing rate')
+    plt.title('CA1 neuron activity across space')
+    plt.axis('equal')
+    plt.xlim(-5, 5)
+    plt.ylim(-5, 5)
+    plt.xlabel("X position")
+    plt.ylabel("Y position")
+    plt.show()
+
+def main():
     num_place_cells = 20
-    num_grid_cells = 2
+    num_grid_cells = 1
     num_steps_per_lap = 100
     laps = 5
 
@@ -113,8 +131,25 @@ if __name__ == "__main__":
         laps=laps
     )
 
+    ca_1_cell = Ca1(num_place_cells, num_grid_cells)
+    ca_1_activity_log = []
+
     for entry in log:
-        print(f"t={entry['t']:03d} | pos=({entry['x']:+.2f}, {entry['y']:+.2f}) | "
-              f"Place fired: {entry['place']} | Grid fired: {entry['grid']}")
+        
+        t = entry['t']
+        x = entry['x']
+        y = entry['y']
+        place_cells_fire_pattern = np.array(entry['place'])
+        grid_cells_fire_pattern = np.array(entry['grid'])
+        
+        ca_1_activity = ca_1_cell.compute_ca1_activity(place_cells_fire_pattern, grid_cells_fire_pattern)
+
+        ca_1_activity_log.append(ca_1_activity)
 
     plot_cells_and_path(place_cells, grid_cells, x_path, y_path, bounds)
+    plot_ca1_activity(ca_1_activity_log, x_path, y_path, bounds)
+    print(bounds)
+
+# Run it all
+if __name__ == "__main__":
+    main()
