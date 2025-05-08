@@ -45,11 +45,9 @@ def plot_distributions(num_cells, x_bounds, y_bounds, spacing_bounds, std_bounds
     for _ in range(num_cells):
         spacing = np.random.uniform(*spacing_bounds)
         std = np.random.uniform(*std_bounds)
-        phase_x = np.random.uniform(0, spacing)
-        phase_y = np.random.uniform(0, spacing * np.sin(np.pi / 3))
 
-        center = ((x_bounds[0] + x_bounds[1]) / 2 + phase_x,
-                  (y_bounds[0] + y_bounds[1]) / 2 + phase_y)
+        center = ((x_bounds[0] + x_bounds[1]) / 2,
+                  (y_bounds[0] + y_bounds[1]) / 2)
 
         cell = GridCell(spacing=spacing, std=std,
                         phase_offset_x=0.0, phase_offset_y=0.0,

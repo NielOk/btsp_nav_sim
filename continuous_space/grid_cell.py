@@ -20,33 +20,24 @@ class GridCell():
 
     def _generate_centers(self):
         s = self.spacing
-        h = s * np.sqrt(3) / 2  # vertical step size
+        h = s * np.sqrt(3) / 2  # vertical distance between rows
         centers = []
 
         x_min, x_max, y_min, y_max = self.bounds
-        total_height = y_max - y_min
-        num_rows = int(total_height / h)
+        margin = max(2 * self.std, s)  # safety buffer
 
-        triangle_points = []
-        for row in range(num_rows):
-            y = row * h
-            num_cols = row + 1
-            x_start = -0.5 * s * row
-            for col in range(num_cols):
-                x = x_start + col * s
-                triangle_points.append(np.array([x, y]))
-
-        triangle_points = np.array(triangle_points)
-
-        # Center the triangle on the user-specified center
-        centroid = triangle_points.mean(axis=0)
-        shift = self.center - centroid
-        triangle_points += shift
-
-        # Clip to bounding box
-        for cx, cy in triangle_points:
-            if x_min <= cx <= x_max and y_min <= cy <= y_max:
+        y = y_min - margin
+        row_idx = 0
+        while y <= y_max + margin:
+            x_offset = 0 if row_idx % 2 == 0 else s / 2
+            x = x_min - margin
+            while x <= x_max + margin:
+                cx = x + x_offset
+                cy = y
                 centers.append((cx, cy))
+                x += s
+            y += h
+            row_idx += 1
 
         return centers
 
