@@ -6,15 +6,19 @@ import numpy as np
 from brian2 import *
 
 global_RA = 400*ohm*cm
-section_length = 50*um
-diameter = 1*um
-L_cm = section_length / cm
-D_cm = diameter / cm
-R_axial = (4 * global_RA * L_cm) / (pi * D_cm**2)
+# Define section length and diameter with units
+section_length = 50 * um
+diameter = 1 * um
+
+# Calculate cross-sectional area
+area = pi * (diameter / 2) ** 2
+
+# Calculate axial resistance
+R_axial = (4 * global_RA * section_length) / (pi * diameter ** 2)
 
 class Ca1():
 
-    def __init__(self, num_place_cells, dt=0.1, C=1.0*uF):
+    def __init__(self, num_place_cells, dt=0.1, C=1.0*uF/cm**2):
         """
         num_place_cells: number of place cells
         num_grid_cells: number of grid cells
@@ -22,8 +26,9 @@ class Ca1():
         self.num_place_cells = num_place_cells
         self.N = num_place_cells # number of compartments in dendrite
         self.dt = dt
-        self.C = C # capacitance per cm^2
-        self.Gs = 1 / R_axial # axial conductance per cm^2
+        self.surface_area = pi * diameter * section_length
+        self.C = C * self.surface_area # capacitance for each compartment
+        self.Gs = (1 / R_axial) # axial conductance for each compartment
     
         self.V = np.ones(self.N) * -70.0 * mV
 
@@ -70,13 +75,15 @@ class Ca1():
         )
 
         # === Axial currents from adjacent compartments ===
-        V_pad = np.pad(self.V, (1, 1), mode='edge')  # Neumann boundary: zero derivative
-        V_diff = V_pad[:-2] - 2 * self.V + V_pad[2:]
-        I_axial = self.Gs * V_diff
+        V_left = Quantity(np.concatenate((self.V[0:1], self.V)), dim = self.V.dim)
+        V_right = Quantity(np.concatenate((self.V, self.V[-1:])), dim = self.V.dim)
+
+        V_diff = V_left[:-1] - 2.0 * self.V + V_right[1:]
+        I_axial = self.Gs * V_diff  # units: A
 
         # === Euler update of membrane potential ===
         dVdt = (-I_ion + I_axial) / self.C
-        self.V += self.dt * dVdt
+        self.V += (self.dt * dVdt)
 
         # === Exponential decay of synaptic conductances ===
         self.g_AMPA -= self.dt * self.g_AMPA / self.tau_AMPA
@@ -84,3 +91,11 @@ class Ca1():
 
         # === Store current voltages (for later analysis) ===
         self.V_trace.append(self.V.copy())
+
+    def run_with_custom_spikes(self, spikes_over_time):
+        for spikes in spikes_over_time:
+            self.receive_spikes(spikes)
+            self.update()
+
+    def get_voltage_trace(self):
+        return np.array(self.V_trace)
