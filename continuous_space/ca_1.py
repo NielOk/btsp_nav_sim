@@ -52,13 +52,22 @@ class Ca1():
 
         self.V_trace = []  # store voltage over time
 
+        # Duration constants
+        self.nmda_duration = 100.0 * ms
+        self.nmda_timer = np.zeros(self.N) * ms  # track how long NMDA should remain on
+
+        # Openness constants
+        self.nmda_vh = -23.7 
+        self.nmda_vs = 12.5
+
+        self.kir_vh = -80.0
+        self.kir_vs = -10.0
+
     def receive_spikes(self, spikes):
-        """
-        we overwrite to g_act only if spike occurred.
-        """
         assert len(spikes) == self.N, "Mismatch in number of compartments and spike input"
         self.g_AMPA[spikes == 1] = self.g_AMPA_act
         self.g_NMDA[spikes == 1] = self.g_NMDA_act
+        self.nmda_timer[spikes == 1] = self.nmda_duration
 
     def update(self):
         """
@@ -67,16 +76,27 @@ class Ca1():
         - Apply exponential decay to AMPA and NMDA conductances
         """
 
+        # === Voltage-dependent openness functions ===
+        V_mV = self.V / mV  # Convert to unitless millivolts for computation
+
+        # NMDA openness
+        nmda_openness = (1 + np.exp(-(self.E_NMDA / mV - self.nmda_vh) / self.nmda_vs)) / \
+                        (1 + np.exp(-(V_mV - self.nmda_vh) / self.nmda_vs))
+
+        # KIR openness
+        kir_openness = (1 + np.exp(-(self.E_KIR / mV - self.kir_vh) / self.kir_vs)) / \
+                    (1 + np.exp(-(V_mV - self.kir_vh) / self.kir_vs))
+
         # === Ionic synaptic currents (per compartment) ===
         I_ion = (
             self.g_AMPA * (self.V - self.E_AMPA) +
-            self.g_NMDA * (self.V - self.E_NMDA) +
-            self.g_KIR  * (self.V - self.E_KIR)
+            self.g_NMDA * nmda_openness * (self.V - self.E_NMDA) +
+            self.g_KIR  * kir_openness  * (self.V - self.E_KIR)
         )
 
         # === Axial currents from adjacent compartments ===
-        V_left = Quantity(np.concatenate((self.V[0:1], self.V)), dim = self.V.dim)
-        V_right = Quantity(np.concatenate((self.V, self.V[-1:])), dim = self.V.dim)
+        V_left = Quantity(np.concatenate((self.V[0:1], self.V)), dim=self.V.dim)
+        V_right = Quantity(np.concatenate((self.V, self.V[-1:])), dim=self.V.dim)
 
         V_diff = V_left[:-1] - 2.0 * self.V + V_right[1:]
         I_axial = self.Gs * V_diff  # units: A
@@ -87,7 +107,10 @@ class Ca1():
 
         # === Exponential decay of synaptic conductances ===
         self.g_AMPA -= self.dt * self.g_AMPA / self.tau_AMPA
-        self.g_NMDA -= self.dt * self.g_NMDA / self.tau_NMDA
+        
+        # === Update NMDA timers and shut off when expired ===
+        self.nmda_timer -= self.dt
+        self.g_NMDA[self.nmda_timer <= 0*ms] = 0.0 * nS
 
         # === Store current voltages (for later analysis) ===
         self.V_trace.append(self.V.copy())

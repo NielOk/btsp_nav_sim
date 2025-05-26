@@ -19,9 +19,9 @@ def base_simulation():
         if t == 1000:
             spikes[0] = 1
         if t == 4000:
-            spikes[2] = 1
+            spikes[1] = 1
         if t == 8000:
-            spikes[4] = 1
+            spikes[2] = 1
         spikes_over_time.append(spikes)
 
     # === Run simulation ===
