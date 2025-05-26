@@ -18,9 +18,9 @@ def base_simulation():
         spikes = np.zeros(num_compartments, dtype=int)
         if t == 1000:
             spikes[0] = 1
-        if t == 4000:
+        if t == 2000:
             spikes[1] = 1
-        if t == 8000:
+        if t == 3000:
             spikes[2] = 1
         spikes_over_time.append(spikes)
 
