@@ -44,6 +44,12 @@ class MovementCell():
         self.g_AMPA_act = 8.0 * nsiemens
         self.g_NMDA_act = 2.0 * nsiemens
 
+        # Figure out thevenin equivalent conductances for ends
+        self.Gthevenin_right = self.calculate_Gthevenin(G_L=self.g_KIR[-1])
+        self.right_clamp_length = self.calculate_adjusted_section_length(G_L=self.g_KIR[-1])
+        self.Gthevenin_left = self.calculate_Gthevenin(G_L=self.g_NMDA_act)
+        self.left_clamp_length = self.calculate_adjusted_section_length(G_L=self.g_NMDA_act)
+
         self.tau_AMPA = 5.0 * ms
         self.nmda_duration = 500.0 * ms
         self.nmda_timer = np.zeros(self.N) * ms
@@ -56,7 +62,39 @@ class MovementCell():
 
         self.V_trace = []
 
+    def calculate_Gthevenin(self, G_L=0.1*nS):
+        """
+        Calculate the thevenin equivalent conductance for infinite dendrite stretch. 
+        If closer to soma than sequence, then G_L is G_Kir. 
+        If further, then G_L is G_NMDA. 
+        """
+
+        Gthevenin = (-G_L + (G_L**2 + 4*self.Gs*G_L)**0.5) / 2
+
+        return Gthevenin
+    
+    def calculate_Gb(self, G_L=0.1*nS):
+        """
+        Calculate the thevenin equivalent conductance for infinite dendrite stretch.
+        If closer to soma than sequence, then G_L is G_Kir.
+        If further, then G_L is G_NMDA.
+        """
+        Gthevenin = self.calculate_Gthevenin(G_L)
+        Gb = (Gthevenin * self.Gs) / (2*self.Gs - Gthevenin)
+
+        return Gb
+    
+    def calculate_adjusted_section_length(self, G_L=0.1*nS):
+        """
+        Figure out the adjusted section length for the clamped compartment after the thevenin equivalent conductance.
+        """
+        Gb = self.calculate_Gb(G_L)
+        adjusted_section_length = ((np.pi * (diameter ** 2)) / (4 * Gb * global_RA))
+
+        return adjusted_section_length
+    
     def receive_spikes(self, spikes):
+        
         assert len(spikes) == self.N - 2, "Spikes should match internal compartments only"
         self.g_AMPA[1:-1][spikes == 1] = self.g_AMPA_act
         self.g_NMDA[1:-1][spikes == 1] = self.g_NMDA_act
