@@ -6,7 +6,7 @@ from movement_cell import MovementCell
 
 def base_simulation():
     # === Simulation parameters ===
-    num_test = 5
+    num_test = 2
     num_left = 3
     num_right = 3
     steps = 25000
@@ -16,16 +16,10 @@ def base_simulation():
     spikes_over_time = []
     for t in range(steps):
         spikes = np.zeros(num_test, dtype=int)
+        if t == 1000:
+            spikes[1] = 1
         if t == 3000:
             spikes[0] = 1
-        if t == 6000:
-            spikes[1] = 1
-        if t == 9000:
-            spikes[2] = 1
-        if t == 12000:
-            spikes[3] = 1
-        if t == 15000:
-            spikes[4] = 1
         spikes_over_time.append(spikes)
 
     # === Run simulation ===
@@ -36,20 +30,16 @@ def base_simulation():
     V = cell.get_voltage_trace()  # shape: [time, total compartments]
     time_axis = np.arange(V.shape[0]) * float(dt/ms)
 
-    # === Generate labels ===
+    # === Generate labels (no clamps anymore) ===
     labels = []
     total_N = V.shape[1]
     for i in range(total_N):
-        if i == 0:
-            labels.append("Clamp Left (0 mV)")
-        elif i == total_N - 1:
-            labels.append("Clamp Right (-90 mV)")
-        elif 1 <= i <= num_left:
+        if i < num_left:
             labels.append(f"Left Buffer {i}")
-        elif num_left + 1 <= i <= num_left + num_test:
-            labels.append(f"Test Compartment {i - (num_left + 1)}")
+        elif i < num_left + num_test:
+            labels.append(f"Test Compartment {i - num_left}")
         else:
-            labels.append(f"Right Buffer {i - (num_left + num_test + 1)}")
+            labels.append(f"Right Buffer {i - (num_left + num_test)}")
 
     # === Plotting ===
     plt.figure(figsize=(12, 7))
@@ -58,7 +48,7 @@ def base_simulation():
 
     plt.xlabel('Time (ms)')
     plt.ylabel('Voltage (mV)')
-    plt.title('Voltage Traces Across MovementCell with Buffers and Clamps')
+    plt.title('Voltage Traces Across MovementCell with Buffers Only')
     plt.legend(loc='upper right', fontsize='small', ncol=2)
     plt.grid(True)
     plt.tight_layout()

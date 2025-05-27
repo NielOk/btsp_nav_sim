@@ -7,7 +7,7 @@ from brian2 import *
 
 global_RA = 400*ohm*cm
 # Define section length and diameter with units
-section_length = 50 * um
+section_length = 53 * um
 diameter = 1 * um
 
 # Calculate cross-sectional area
@@ -22,7 +22,7 @@ class MovementCell():
         self.num_test = num_test
         self.num_left = num_left
         self.num_right = num_right
-        self.N = 2 + num_left + num_test + num_right  # clampL + buffers + test + clampR
+        self.N = num_left + num_test + num_right  # no clamps anymore
 
         self.dt = dt
         self.surface_area = pi * diameter * section_length
@@ -31,8 +31,6 @@ class MovementCell():
 
         # === Voltage Initialization ===
         self.V = np.ones(self.N) * -70.0 * mV
-        self.V[0] = 0.0 * mV     # Clamp L
-        self.V[-1] = -90.0 * mV  # Clamp R
 
         # === Channels ===
         self.E_AMPA = 0.0 * mV
@@ -60,15 +58,15 @@ class MovementCell():
 
     def receive_spikes(self, spikes):
         assert len(spikes) == self.num_test, "Spikes must match test compartments"
-        # Left buffer indices: [1 : 1 + num_left] → receives spikes
-        # Test indices: [1 + num_left : 1 + num_left + num_test]
-        test_start = 1 + self.num_left
+        test_start = self.num_left
         test_end = test_start + self.num_test
 
-        self.g_AMPA[1:self.num_left+1] = self.g_AMPA_act        # Left buffer spikes
-        self.g_NMDA[1:self.num_left+1] = self.g_NMDA_act
-        self.nmda_timer[1:self.num_left+1] = self.nmda_duration
+        # Left buffers spike every step
+        self.g_AMPA[0:self.num_left] = self.g_AMPA_act
+        self.g_NMDA[0:self.num_left] = self.g_NMDA_act
+        self.nmda_timer[0:self.num_left] = self.nmda_duration
 
+        # Test region gets spike input
         self.g_AMPA[test_start:test_end][spikes == 1] = self.g_AMPA_act
         self.g_NMDA[test_start:test_end][spikes == 1] = self.g_NMDA_act
         self.nmda_timer[test_start:test_end][spikes == 1] = self.nmda_duration
@@ -76,36 +74,46 @@ class MovementCell():
     def update(self):
         V_mV = self.V / mV
 
+        # === Gating ===
         nmda_open = (1 + np.exp(-(self.E_NMDA / mV - self.nmda_vh) / self.nmda_vs)) / \
                     (1 + np.exp(-(V_mV - self.nmda_vh) / self.nmda_vs))
         kir_open = (1 + np.exp(-(self.E_KIR / mV - self.kir_vh) / self.kir_vs)) / \
-                   (1 + np.exp(-(V_mV - self.kir_vh) / self.kir_vs))
+                (1 + np.exp(-(V_mV - self.kir_vh) / self.kir_vs))
 
+        # === Ionic current ===
         I_ion = (
             self.g_AMPA * (self.V - self.E_AMPA) +
             self.g_NMDA * nmda_open * (self.V - self.E_NMDA) +
             self.g_KIR  * kir_open  * (self.V - self.E_KIR)
         )
 
-        V_left  = self.V[0:-2]
-        V_mid   = self.V[1:-1]
-        V_right = self.V[2:]
+        # === Axial current ===
+        I_axial = np.zeros(self.N) * amp  # 🔧 ensure correct unit
 
-        G_left  = self.Gs_vector[0:self.N - 2]
+        # Left edge (only right neighbor)
+        I_axial[0] = self.Gs_vector[0] * (self.V[1] - self.V[0])
+
+        # Internal compartments
+        G_left = self.Gs_vector[0:self.N - 2]
         G_right = self.Gs_vector[1:self.N - 1]
+        V_left = self.V[0:-2]
+        V_mid = self.V[1:-1]
+        V_right = self.V[2:]
+        I_axial[1:-1] = G_left * (V_left - V_mid) + G_right * (V_right - V_mid)
 
-        I_axial = G_left * (V_left - V_mid) + G_right * (V_right - V_mid)
+        # Right edge (only left neighbor)
+        I_axial[-1] = self.Gs_vector[-1] * (self.V[-2] - self.V[-1])
 
-        dVdt = (-I_ion[1:-1] + I_axial) / self.C
-        self.V[1:-1] += self.dt * dVdt
+        # === Voltage update ===
+        dVdt = (-I_ion + I_axial) / self.C
+        self.V += self.dt * dVdt
 
-        self.g_AMPA[1:-1] -= self.dt * self.g_AMPA[1:-1] / self.tau_AMPA
-        self.nmda_timer[1:-1] -= self.dt
+        # === Synaptic decay ===
+        self.g_AMPA -= self.dt * self.g_AMPA / self.tau_AMPA
+        self.nmda_timer -= self.dt
         self.g_NMDA[self.nmda_timer <= 0 * ms] = 0.0 * nS
 
-        self.V[0] = 0.0 * mV
-        self.V[-1] = -90.0 * mV
-
+        # === Store trace ===
         self.V_trace.append(self.V.copy())
 
     def run_with_custom_spikes(self, spikes_over_time):
