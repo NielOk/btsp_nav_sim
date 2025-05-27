@@ -4,23 +4,7 @@ from brian2 import *
 
 from movement_cell import MovementCell
 
-def base_simulation():
-    # === Simulation parameters ===
-    num_test = 2
-    num_left = 3
-    num_right = 3
-    steps = 25000
-    dt = 0.005 * ms
-
-    # === Define spike pattern (only for test compartments) ===
-    spikes_over_time = []
-    for t in range(steps):
-        spikes = np.zeros(num_test, dtype=int)
-        if t == 1000:
-            spikes[1] = 1
-        if t == 3000:
-            spikes[0] = 1
-        spikes_over_time.append(spikes)
+def run_simulation(num_test, num_left, num_right, steps, dt, spikes_over_time):
 
     # === Run simulation ===
     cell = MovementCell(num_test=num_test, num_left=num_left, num_right=num_right, dt=dt)
@@ -54,8 +38,53 @@ def base_simulation():
     plt.tight_layout()
     plt.show()
 
+def two_compartments():
+    # === Simulation parameters ===
+    num_test = 2
+    num_left = 3
+    num_right = 3
+    steps = 25000
+    dt = 0.005 * ms
+
+    # === Define spike pattern (only for test compartments) ===
+    spikes_over_time = []
+    for t in range(steps):
+        spikes = np.zeros(num_test, dtype=int)
+        if t == 5000:
+            spikes[0] = 1
+        if t == 7000:
+            spikes[1] = 1
+        spikes_over_time.append(spikes)
+
+    # === Run the simulation and plot results ===
+    run_simulation(num_test, num_left, num_right, steps, dt, spikes_over_time)
+
+def three_compartments():
+    # === Simulation parameters ===
+    num_test = 3
+    num_left = 3
+    num_right = 3
+    steps = 25000
+    dt = 0.005 * ms
+
+    # === Define spike pattern (only for test compartments) ===
+    spikes_over_time = []
+    for t in range(steps):
+        spikes = np.zeros(num_test, dtype=int)
+        if t == 5000:
+            spikes[0] = 1
+        if t == 7000:
+            spikes[1] = 1
+        if t == 9000:
+            spikes[2] = 1
+        spikes_over_time.append(spikes)
+
+    # === Run the simulation and plot results ===
+    run_simulation(num_test, num_left, num_right, steps, dt, spikes_over_time)
+
 def main():
-    base_simulation()
+    #two_compartments()
+    three_compartments()
 
 if __name__ == '__main__':
     main()
