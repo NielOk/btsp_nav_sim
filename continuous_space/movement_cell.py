@@ -20,11 +20,12 @@ class MovementCell():
 
     def __init__(self, num_compartments, dt=0.1, C=1.0*uF/cm**2):
         self.num_compartments = num_compartments
-        self.N = num_compartments + 2  # total compartments including boundaries
+        self.N = num_compartments + 2 # total compartments including clamped ends
         self.dt = dt
         self.surface_area = pi * diameter * section_length
         self.C = C * self.surface_area
-        self.Gs = (1 / R_axial)
+        self.Gs = (1 / R_axial)  # axial conductance for each basic compartment
+        self.Gs_vector = np.ones(self.N - 1) * (1 / R_axial) # conductance vector for internal compartments
 
         # Initialize voltages
         self.V = np.ones(self.N) * -70.0 * mV
@@ -44,12 +45,6 @@ class MovementCell():
         self.g_AMPA_act = 8.0 * nsiemens
         self.g_NMDA_act = 2.0 * nsiemens
 
-        # Figure out thevenin equivalent conductances for ends
-        self.Gthevenin_right = self.calculate_Gthevenin(G_L=self.g_KIR[-1])
-        self.right_clamp_length = self.calculate_adjusted_section_length(G_L=self.g_KIR[-1])
-        self.Gthevenin_left = self.calculate_Gthevenin(G_L=self.g_NMDA_act)
-        self.left_clamp_length = self.calculate_adjusted_section_length(G_L=self.g_NMDA_act)
-
         self.tau_AMPA = 5.0 * ms
         self.nmda_duration = 500.0 * ms
         self.nmda_timer = np.zeros(self.N) * ms
@@ -61,41 +56,9 @@ class MovementCell():
         self.kir_vs = -10.0
 
         self.V_trace = []
-
-    def calculate_Gthevenin(self, G_L=0.1*nS):
-        """
-        Calculate the thevenin equivalent conductance for infinite dendrite stretch. 
-        If closer to soma than sequence, then G_L is G_Kir. 
-        If further, then G_L is G_NMDA. 
-        """
-
-        Gthevenin = (-G_L + (G_L**2 + 4*self.Gs*G_L)**0.5) / 2
-
-        return Gthevenin
-    
-    def calculate_Gb(self, G_L=0.1*nS):
-        """
-        Calculate the thevenin equivalent conductance for infinite dendrite stretch.
-        If closer to soma than sequence, then G_L is G_Kir.
-        If further, then G_L is G_NMDA.
-        """
-        Gthevenin = self.calculate_Gthevenin(G_L)
-        Gb = (Gthevenin * self.Gs) / (2*self.Gs - Gthevenin)
-
-        return Gb
-    
-    def calculate_adjusted_section_length(self, G_L=0.1*nS):
-        """
-        Figure out the adjusted section length for the clamped compartment after the thevenin equivalent conductance.
-        """
-        Gb = self.calculate_Gb(G_L)
-        adjusted_section_length = ((np.pi * (diameter ** 2)) / (4 * Gb * global_RA))
-
-        return adjusted_section_length
     
     def receive_spikes(self, spikes):
-        
-        assert len(spikes) == self.N - 2, "Spikes should match internal compartments only"
+        assert len(spikes) == self.N - 2, "Spikes must match internal compartments (excluding clamps)"
         self.g_AMPA[1:-1][spikes == 1] = self.g_AMPA_act
         self.g_NMDA[1:-1][spikes == 1] = self.g_NMDA_act
         self.nmda_timer[1:-1][spikes == 1] = self.nmda_duration
@@ -117,23 +80,24 @@ class MovementCell():
         )
 
         # Axial current (using neighbors)
-        V_left = self.V[:-2]
+        V_left = self.V[0:-2]
         V_mid  = self.V[1:-1]
         V_right = self.V[2:]
 
-        V_diff = V_left - 2 * V_mid + V_right
-        I_axial = self.Gs * V_diff
+        G_left  = self.Gs_vector[0:self.N - 2]
+        G_right = self.Gs_vector[1:self.N - 1]
 
-        # Euler update for internal compartments only
+        # Compute pairwise axial currents from left and right
+        I_axial = G_left * (V_left - V_mid) + G_right * (V_right - V_mid)
+
+        # Update only non-clamped compartments
         dVdt = (-I_ion[1:-1] + I_axial) / self.C
         self.V[1:-1] += self.dt * dVdt
 
-        # Exponential decay for AMPA
+        # Decay only on active compartments
         self.g_AMPA[1:-1] -= self.dt * self.g_AMPA[1:-1] / self.tau_AMPA
-
-        # Timer-based NMDA decay
         self.nmda_timer[1:-1] -= self.dt
-        mask_expired = self.nmda_timer <= 0*ms
+        mask_expired = self.nmda_timer <= 0 * ms
         self.g_NMDA[mask_expired] = 0.0 * nS
 
         # Clamp boundary voltages
