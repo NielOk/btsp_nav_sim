@@ -45,7 +45,7 @@ class MovementCell():
         self.g_NMDA_act = 2.0 * nsiemens
 
         self.tau_AMPA = 5.0 * ms
-        self.nmda_duration = 100.0 * ms
+        self.nmda_duration = 500.0 * ms
         self.nmda_timer = np.zeros(self.N) * ms
 
         # Openness constants
@@ -95,7 +95,8 @@ class MovementCell():
 
         # Timer-based NMDA decay
         self.nmda_timer[1:-1] -= self.dt
-        self.g_NMDA[self.nmda_timer <= 0*ms] = 0.0 * nS
+        mask_expired = self.nmda_timer <= 0*ms
+        self.g_NMDA[mask_expired] = 0.0 * nS
 
         # Clamp boundary voltages
         self.V[0] = 0.0 * mV

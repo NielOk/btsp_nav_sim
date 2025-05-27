@@ -7,22 +7,22 @@ from movement_cell import MovementCell
 def base_simulation():
     # === Simulation parameters ===
     num_internal = 5  # internal compartments
-    steps = 10000
-    dt = 0.01 * ms
+    steps = 25000
+    dt = 0.005 * ms
 
     # === Define spike pattern ===
     spikes_over_time = []
     for t in range(steps):
         spikes = np.zeros(num_internal, dtype=int)
-        if t == 1000:
-            spikes[0] = 1
-        if t == 1500:
-            spikes[1] = 1
-        if t == 2000:
-            spikes[2] = 1
-        if t == 2500:
-            spikes[3] = 1
         if t == 3000:
+            spikes[0] = 1
+        if t == 6000:
+            spikes[1] = 1
+        if t == 9000:
+            spikes[2] = 1
+        if t == 12000:
+            spikes[3] = 1
+        if t == 15000:
             spikes[4] = 1
         spikes_over_time.append(spikes)
 
