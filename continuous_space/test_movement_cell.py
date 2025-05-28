@@ -51,9 +51,9 @@ def two_compartments():
     for t in range(steps):
         spikes = np.zeros(num_test, dtype=int)
         if t == 5000:
-            spikes[0] = 1
-        if t == 7000:
             spikes[1] = 1
+        if t == 7000:
+            spikes[0] = 1
         spikes_over_time.append(spikes)
 
     # === Run the simulation and plot results ===
@@ -82,9 +82,39 @@ def three_compartments():
     # === Run the simulation and plot results ===
     run_simulation(num_test, num_left, num_right, steps, dt, spikes_over_time)
 
+def six_compartments():
+    # === Simulation parameters ===
+    num_test = 6
+    num_left = 3
+    num_right = 3
+    steps = 30000
+    dt = 0.005 * ms
+
+    # === Define spike pattern (only for test compartments) ===
+    spikes_over_time = []
+    for t in range(steps):
+        spikes = np.zeros(num_test, dtype=int)
+        if t == 5000:
+            spikes[0] = 1
+        if t == 7000:
+            spikes[1] = 1
+        if t == 9000:
+            spikes[2] = 1
+        if t == 11000:
+            spikes[3] = 1
+        if t == 13000:
+            spikes[4] = 1
+        if t == 15000:
+            spikes[5] = 1
+        spikes_over_time.append(spikes)
+
+    # === Run the simulation and plot results ===
+    run_simulation(num_test, num_left, num_right, steps, dt, spikes_over_time)
+
 def main():
     #two_compartments()
-    three_compartments()
+    #three_compartments()
+    six_compartments()
 
 if __name__ == '__main__':
     main()

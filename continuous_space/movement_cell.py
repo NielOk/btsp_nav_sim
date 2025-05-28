@@ -28,6 +28,9 @@ class MovementCell():
         self.surface_area = pi * diameter * section_length
         self.C = C * self.surface_area
         self.Gs_vector = np.ones(self.N - 1) * (1 / R_axial)
+        print(self.Gs_vector)
+        print(f"Working G_K: {self.Gs_vector[0] * 15}")
+        print(f"Working Gn: {self.Gs_vector[0] * 5}")
 
         # === Voltage Initialization ===
         self.V = np.ones(self.N) * -70.0 * mV
@@ -39,10 +42,10 @@ class MovementCell():
 
         self.g_AMPA = np.zeros(self.N) * nS
         self.g_NMDA = np.zeros(self.N) * nS
-        self.g_KIR = np.ones(self.N) * 6.0 * nS
+        self.g_KIR = np.ones(self.N) * 55.571 * nsiemens # np.ones(self.N) * 6.0 * nS
 
         self.g_AMPA_act = 8.0 * nsiemens
-        self.g_NMDA_act = 2.0 * nsiemens
+        self.g_NMDA_act = 18.523 * nsiemens #2.0 * nsiemens
 
         self.tau_AMPA = 5.0 * ms
         self.nmda_duration = 500.0 * ms
@@ -88,7 +91,7 @@ class MovementCell():
         )
 
         # === Axial current ===
-        I_axial = np.zeros(self.N) * amp  # 🔧 ensure correct unit
+        I_axial = np.zeros(self.N) * amp  # ensure correct unit
 
         # Left edge (only right neighbor)
         I_axial[0] = self.Gs_vector[0] * (self.V[1] - self.V[0])
