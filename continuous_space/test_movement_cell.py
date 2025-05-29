@@ -112,9 +112,9 @@ def six_compartments():
     run_simulation(num_test, num_left, num_right, steps, dt, spikes_over_time)
 
 def main():
-    #two_compartments()
+    two_compartments()
     #three_compartments()
-    six_compartments()
+    #six_compartments()
 
 if __name__ == '__main__':
     main()

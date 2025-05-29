@@ -80,6 +80,7 @@ class MovementCell():
         # === Gating ===
         nmda_open = (1 + np.exp(-(self.E_NMDA / mV - self.nmda_vh) / self.nmda_vs)) / \
                     (1 + np.exp(-(V_mV - self.nmda_vh) / self.nmda_vs))
+        self.nmda_open = nmda_open # Track nmda openness
         kir_open = (1 + np.exp(-(self.E_KIR / mV - self.kir_vh) / self.kir_vs)) / \
                 (1 + np.exp(-(V_mV - self.kir_vh) / self.kir_vs))
 
