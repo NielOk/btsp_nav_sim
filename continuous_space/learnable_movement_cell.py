@@ -67,7 +67,8 @@ class LearnableMovementCell():
         self.g_NMDA = np.zeros(self.N) * nS
         self.g_KIR = np.ones(self.N) * 55.571 * nsiemens # np.ones(self.N) * 6.0 * nS
 
-        self.g_AMPA_act_place = place_cell_ampa # already in nsiemens
+        # One AMPA weight per place cell connection (modifiable)
+        self.place_cell_weights = np.full(len(self.place_cell_map), place_cell_ampa) * nsiemens
         self.g_AMPA_act_signal = instructive_signal_ampa # already in nsiemens
 
         self.g_AMPA_act = 8.0 * nsiemens
@@ -98,8 +99,9 @@ class LearnableMovementCell():
         for i, spike in enumerate(place_cell_spikes):
             if spike:
                 idx = self.place_cell_map[i]
-                self.g_AMPA[idx] += self.g_AMPA_act_place
-                self.g_NMDA[idx] += self.g_NMDA_act
+                weight = self.place_cell_weights[i]  # connection-specific AMPA
+                self.g_AMPA[idx] += weight
+                self.g_NMDA[idx] += self.g_NMDA_act  # still shared
                 self.nmda_timer[idx] = self.nmda_duration
 
         # === Apply instructive signal inputs (AMPA only) ===
