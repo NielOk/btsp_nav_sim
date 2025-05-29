@@ -51,9 +51,9 @@ def two_compartments():
     for t in range(steps):
         spikes = np.zeros(num_test, dtype=int)
         if t == 5000:
-            spikes[1] = 1
-        if t == 7000:
             spikes[0] = 1
+        if t == 7000:
+            spikes[1] = 1
         spikes_over_time.append(spikes)
 
     # === Run the simulation and plot results ===
