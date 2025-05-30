@@ -93,11 +93,15 @@ class LearnableMovementCell:
             g_AMPA_comp[comp] += self.g_AMPA_place[i]
             g_NMDA_comp[comp] += self.g_NMDA_place[i] * nmda_openness[comp]
 
+        # Keep left sides at plateau
+        g_AMPA_comp[0:self.num_left] = self.g_AMPA_act_max
+        g_NMDA_comp[0:self.num_left] = self.g_NMDA_act_max
+
         # Figure out currents for each compartment
         I_ion = (
-            g_AMPA_comp * (self.E_AMPA - self.V) +
-            g_NMDA_comp * (self.E_NMDA - self.V) +
-            self.g_KIR * kir_openness * (self.E_KIR - self.V)
+            g_AMPA_comp * (self.V - self.E_AMPA) +
+            g_NMDA_comp * (self.V - self.E_NMDA) +
+            self.g_KIR * kir_openness * (self.V - self.E_KIR)
         )
 
         I_axial = np.zeros(self.N) * amp
@@ -137,7 +141,7 @@ class LearnableMovementCell:
         for t in range(len(place_cell_spikes_over_time)):
             self.receive_spikes(place_cell_spikes_over_time[t], signal_spikes_over_time[t])
             self.update()
-            self.apply_ampa_learning(learning_rate=1e-8, nmda_openness_threshold=0.7)
+            self.apply_ampa_learning(learning_rate=1e-12, nmda_openness_threshold=0.7)
 
             if t == 5000 or t == 10000:
                 print(f"Time step {t}: V = {self.V}")
