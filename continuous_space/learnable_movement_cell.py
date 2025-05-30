@@ -83,6 +83,7 @@ class LearnableMovementCell:
 
         nmda_openness = (1 + np.exp(-(self.E_NMDA / mV - self.nmda_vh) / self.nmda_vs)) / \
                     (1 + np.exp(-(V_mV - self.nmda_vh) / self.nmda_vs)) # This captures openness based on voltage dependence. Still need to capture based on glutamate.
+        self.nmda_openness = nmda_openness
         kir_openness = (1 + np.exp(-(self.E_KIR / mV - self.kir_vh) / self.kir_vs)) / \
                     (1 + np.exp(-(V_mV - self.kir_vh) / self.kir_vs))
     
@@ -124,13 +125,13 @@ class LearnableMovementCell:
 
         self.V_trace.append(self.V.copy())
 
+        return nmda_openness
+
     def apply_ampa_learning(self, learning_rate, nmda_openness_threshold):
         for i in range(len(self.place_cell_map)):
             comp = self.place_cell_map[i]
 
-            V_mV = self.V[comp] / mV
-            nmda_open = (1 + np.exp(-(self.E_NMDA / mV - self.nmda_vh) / self.nmda_vs)) / \
-                        (1 + np.exp(-(V_mV - self.nmda_vh) / self.nmda_vs))
+            nmda_open = self.nmda_openness[comp]
                         
             # Captures both glutamate and voltage dependence
             if self.nmda_timer_place[i] > 0 * ms and nmda_open >= nmda_openness_threshold:
