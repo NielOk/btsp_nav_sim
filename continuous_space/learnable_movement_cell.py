@@ -69,7 +69,7 @@ class LearnableMovementCell:
         # Place cells have both nmda and ampa
         for i, spike in enumerate(place_cell_spikes):
             if spike:
-                self.g_AMPA_place[i] += self.place_cell_weights[i]
+                self.g_AMPA_place[i] += self.place_cell_g_acts[i]
                 self.g_NMDA_place[i] = self.g_NMDA_act_max
                 self.nmda_timer_place[i] = self.nmda_duration
         
@@ -137,10 +137,13 @@ class LearnableMovementCell:
         for t in range(len(place_cell_spikes_over_time)):
             self.receive_spikes(place_cell_spikes_over_time[t], signal_spikes_over_time[t])
             self.update()
-            self.apply_ampa_learning(learning_rate=1e-12, nmda_openness_threshold=0.5, place_cell_spikes=place_cell_spikes_over_time[t])
+            self.apply_ampa_learning(learning_rate=1e-8, nmda_openness_threshold=0.7)
 
             if t == 5000 or t == 10000:
                 print(f"Time step {t}: V = {self.V}")
                 print(f"Place cell weights: {self.place_cell_g_acts}")
                 print(f"AMPA weights: {self.place_cell_g_acts}")
                 print(f"NMDA conductances: {self.g_NMDA_place}")
+
+    def get_voltage_trace(self):
+        return np.array(self.V_trace)
