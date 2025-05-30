@@ -13,7 +13,7 @@ class LearnableMovementCell:
     def __init__(self, num_test, place_cell_ampa, instructive_signal_ampa, 
                  place_cell_connections, instructive_signal_connections,
                  num_left=1, num_right=1, dt=0.1, C=1.0*uF/cm**2):
-
+        
         assert len(place_cell_connections) == num_test
         assert len(instructive_signal_connections) == num_test
 
@@ -41,13 +41,15 @@ class LearnableMovementCell:
         self.E_KIR = -90.0 * mV
 
         self.g_KIR = np.ones(self.N) * 55.571 * nS
+
         self.g_AMPA_place = np.zeros(len(self.place_cell_map)) * nS
         self.g_NMDA_place = np.zeros(len(self.place_cell_map)) * nS
-        self.place_cell_weights = np.full(len(self.place_cell_map), place_cell_ampa) * nS
+
+        self.place_cell_g_acts = np.full(len(self.place_cell_map), place_cell_ampa) * nS
 
         self.g_AMPA_act_signal = instructive_signal_ampa
-        self.g_AMPA_act = 8.0 * nS
-        self.g_NMDA_act = 18.523 * nS
+        self.g_AMPA_act_max = 8.0 * nS
+        self.g_NMDA_act_max = 18.523 * nS
 
         self.tau_AMPA = 5.0 * ms
         self.nmda_duration = 500.0 * ms
@@ -64,51 +66,38 @@ class LearnableMovementCell:
         assert len(place_cell_spikes) == len(self.place_cell_map)
         assert len(signal_spikes) == len(self.signal_map)
 
+        # Place cells have both nmda and ampa
         for i, spike in enumerate(place_cell_spikes):
             if spike:
                 self.g_AMPA_place[i] += self.place_cell_weights[i]
-                self.g_NMDA_place[i] = self.g_NMDA_act
+                self.g_NMDA_place[i] = self.g_NMDA_act_max
                 self.nmda_timer_place[i] = self.nmda_duration
-
+        
+        # Instructive signal is pure AMPA
         for i, spike in enumerate(signal_spikes):
             if spike:
                 self.g_AMPA_place[i] += self.g_AMPA_act_signal
-
-    def apply_ampa_learning(self, learning_rate, nmda_openness_threshold):
-        for i in range(len(self.place_cell_map)):
-            comp = self.place_cell_map[i]
-
-            V_mV = self.V[comp] / mV
-            nmda_open = (1 + np.exp(-(self.E_NMDA / mV - self.nmda_vh) / self.nmda_vs)) / \
-                        (1 + np.exp(-(V_mV - self.nmda_vh) / self.nmda_vs))
-                        
-            # Captures both glutamate and voltage dependence
-            if self.nmda_timer_place[i] > 0 * ms and nmda_open >= nmda_openness_threshold:
-                self.place_cell_weights[i] += learning_rate * nS
-
+        
     def update(self):
         V_mV = self.V / mV
-        nmda_open = (1 + np.exp(-(self.E_NMDA / mV - self.nmda_vh) / self.nmda_vs)) / \
-                    (1 + np.exp(-(V_mV - self.nmda_vh) / self.nmda_vs))
-        self.nmda_open = nmda_open
 
-        kir_open = (1 + np.exp(-(self.E_KIR / mV - self.kir_vh) / self.kir_vs)) / \
-                   (1 + np.exp(-(V_mV - self.kir_vh) / self.kir_vs))
-
-        g_AMPA = np.zeros(self.N) * nS
-        g_NMDA = np.zeros(self.N) * nS
+        nmda_openness = (1 + np.exp(-(self.E_NMDA / mV - self.nmda_vh) / self.nmda_vs)) / \
+                    (1 + np.exp(-(V_mV - self.nmda_vh) / self.nmda_vs)) # This captures openness based on voltage dependence. Still need to capture based on glutamate.
+        kir_openness = (1 + np.exp(-(self.E_KIR / mV - self.kir_vh) / self.kir_vs)) / \
+                    (1 + np.exp(-(V_mV - self.kir_vh) / self.kir_vs))
+    
+        g_AMPA_comp = np.zeros(self.N) * nS
+        g_NMDA_comp = np.zeros(self.N) * nS
 
         for i, comp in enumerate(self.place_cell_map):
-            g_AMPA[comp] += self.g_AMPA_place[i]
-            g_NMDA[comp] += self.g_NMDA_place[i]
+            g_AMPA_comp[comp] += self.g_AMPA_place[i]
+            g_NMDA_comp[comp] += self.g_NMDA_place[i] * nmda_openness[comp]
 
-        g_AMPA[0:self.num_left] = self.g_AMPA_act
-        g_NMDA[0:self.num_left] = self.g_NMDA_act
-
+        # Figure out currents for each compartment
         I_ion = (
-            g_AMPA * (self.V - self.E_AMPA) +
-            g_NMDA * nmda_open * (self.V - self.E_NMDA) +
-            self.g_KIR * kir_open * (self.V - self.E_KIR)
+            g_AMPA_comp * (self.E_AMPA - self.V) +
+            g_NMDA_comp * (self.E_NMDA - self.V) +
+            self.g_KIR * kir_openness * (self.E_KIR - self.V)
         )
 
         I_axial = np.zeros(self.N) * amp
@@ -131,6 +120,18 @@ class LearnableMovementCell:
 
         self.V_trace.append(self.V.copy())
 
+    def apply_ampa_learning(self, learning_rate, nmda_openness_threshold):
+        for i in range(len(self.place_cell_map)):
+            comp = self.place_cell_map[i]
+
+            V_mV = self.V[comp] / mV
+            nmda_open = (1 + np.exp(-(self.E_NMDA / mV - self.nmda_vh) / self.nmda_vs)) / \
+                        (1 + np.exp(-(V_mV - self.nmda_vh) / self.nmda_vs))
+                        
+            # Captures both glutamate and voltage dependence
+            if self.nmda_timer_place[i] > 0 * ms and nmda_open >= nmda_openness_threshold:
+                self.place_cell_g_acts[i] += learning_rate * nS
+
     def run_with_custom_spikes(self, place_cell_spikes_over_time, signal_spikes_over_time):
 
         for t in range(len(place_cell_spikes_over_time)):
@@ -140,10 +141,6 @@ class LearnableMovementCell:
 
             if t == 5000 or t == 10000:
                 print(f"Time step {t}: V = {self.V}")
-                print(f"Place cell weights: {self.place_cell_weights}")
-                print(f"NMDA openness: {self.nmda_open}")
-                print(f"AMPA weights: {self.place_cell_weights}")
+                print(f"Place cell weights: {self.place_cell_g_acts}")
+                print(f"AMPA weights: {self.place_cell_g_acts}")
                 print(f"NMDA conductances: {self.g_NMDA_place}")
-
-    def get_voltage_trace(self):
-        return np.array(self.V_trace)
