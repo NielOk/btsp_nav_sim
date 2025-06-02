@@ -73,11 +73,13 @@ def two_compartments():
         # After place cell spikes, there is a specified time window where, if nmda is open enough, the ampa weights will increase.
         if t == 5000:
             place_spikes[2] = 1
-            instructive_spikes[3] = 1 # compartment 0
+
+        if t == 6000:
+            instructive_spikes[2] = 1 # compartment 0
 
         if t == 7000:
             place_spikes[15] = 1 # compartment 1
-            instructive_spikes[12] = 1 # compartment 1
+            instructive_spikes[12] = 1 # compartment 1 
 
         place_cell_spikes_over_time.append(place_spikes)
         instructive_signal_spikes_over_time.append(instructive_spikes)

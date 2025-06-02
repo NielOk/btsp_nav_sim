@@ -45,7 +45,7 @@ class LearnableMovementCell:
         self.g_AMPA_place = np.zeros(len(self.place_cell_map)) * nS
         self.g_NMDA_place = np.zeros(len(self.place_cell_map)) * nS
 
-        self.place_cell_g_acts = np.full(len(self.place_cell_map), place_cell_ampa) * nS
+        self.place_cell_g_acts = np.full(len(self.place_cell_map), place_cell_ampa) * siemens
 
         self.g_AMPA_act_signal = instructive_signal_ampa
         self.g_AMPA_act_max = 8.0 * nS
@@ -142,11 +142,10 @@ class LearnableMovementCell:
         for t in range(len(place_cell_spikes_over_time)):
             self.receive_spikes(place_cell_spikes_over_time[t], signal_spikes_over_time[t])
             self.update()
-            self.apply_ampa_learning(learning_rate=1e-12, nmda_openness_threshold=0.7)
+            self.apply_ampa_learning(learning_rate=1e-3, nmda_openness_threshold=0.7)
 
             if t == 5000 or t == 10000:
                 print(f"Time step {t}: V = {self.V}")
-                print(f"Place cell weights: {self.place_cell_g_acts}")
                 print(f"AMPA weights: {self.place_cell_g_acts}")
                 print(f"NMDA conductances: {self.g_NMDA_place}")
 
