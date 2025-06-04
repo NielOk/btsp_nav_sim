@@ -50,7 +50,7 @@ def two_compartments():
     num_test = 2
     num_left = 3
     num_right = 3
-    steps = 25000
+    steps = 50000
     dt = 0.005 * ms
 
     # === Define connections ===
@@ -74,10 +74,10 @@ def two_compartments():
         if t == 5000:
             place_spikes[2] = 1
 
-        if t == 6000:
+        if t == 5500:
             instructive_spikes[2] = 1 # compartment 0
 
-        if t == 7000:
+        if t == 7500:
             place_spikes[15] = 1 # compartment 1
             instructive_spikes[12] = 1 # compartment 1 
 

@@ -49,6 +49,7 @@ class LearnableMovementCell:
 
         self.g_AMPA_act_signal = instructive_signal_ampa
         self.g_AMPA_act_max = 8.0 * nS
+        self.g_AMPA_learned_max = 10.0 * nS
         self.g_NMDA_act_max = 18.523 * nS
 
         self.tau_AMPA = 5.0 * ms
@@ -134,7 +135,7 @@ class LearnableMovementCell:
             nmda_open = self.nmda_openness[comp]
                         
             # Captures both glutamate and voltage dependence
-            if self.nmda_timer_place[i] > 0 * ms and nmda_open >= nmda_openness_threshold:
+            if self.nmda_timer_place[i] > 0 * ms and nmda_open >= nmda_openness_threshold and self.place_cell_g_acts[i] < self.g_AMPA_learned_max:
                 self.place_cell_g_acts[i] += learning_rate * nS
 
     def run_with_custom_spikes(self, place_cell_spikes_over_time, signal_spikes_over_time):
@@ -142,9 +143,9 @@ class LearnableMovementCell:
         for t in range(len(place_cell_spikes_over_time)):
             self.receive_spikes(place_cell_spikes_over_time[t], signal_spikes_over_time[t])
             self.update()
-            self.apply_ampa_learning(learning_rate=1e-3, nmda_openness_threshold=0.7)
+            self.apply_ampa_learning(learning_rate=3e-3, nmda_openness_threshold=0.7)
 
-            if t == 5000 or t == 10000:
+            if t == 5000 or t == 10000 or t == 24999:
                 print(f"Time step {t}: V = {self.V}")
                 print(f"AMPA weights: {self.place_cell_g_acts}")
                 print(f"NMDA conductances: {self.g_NMDA_place}")
