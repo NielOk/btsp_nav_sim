@@ -51,7 +51,7 @@ def two_compartments():
     num_left = 3
     num_right = 3
     steps = 50000
-    dt = 0.005 * ms
+    dt = 0.01 * ms
 
     # === Define connections ===
     place_cell_ampa = 2.0 * nsiemens
@@ -64,22 +64,27 @@ def two_compartments():
     instructive_total = sum(num_instructive_signal_connections)
 
     # === Define spike pattern (only for test compartments) ===
+    place_spike_dict = {
+        5000: [(2,)],
+        7500: [(15,)]
+    }
+    instructive_spike_dict = {
+        5500: [(2,)],
+        7500: [(12,)]
+    }
+
     place_cell_spikes_over_time = []
     instructive_signal_spikes_over_time = []
     for t in range(steps):
         place_spikes = np.zeros(place_total, dtype=int)
         instructive_spikes = np.zeros(instructive_total, dtype=int)
 
-        # After place cell spikes, there is a specified time window where, if nmda is open enough, the ampa weights will increase.
-        if t == 5000:
-            place_spikes[2] = 1
-
-        if t == 5500:
-            instructive_spikes[2] = 1 # compartment 0
-
-        if t == 7500:
-            place_spikes[15] = 1 # compartment 1
-            instructive_spikes[12] = 1 # compartment 1 
+        if t in place_spike_dict:
+            for i in place_spike_dict[t]:
+                place_spikes[i] = 1
+        if t in instructive_spike_dict:
+            for i in instructive_spike_dict[t]:
+                instructive_spikes[i] = 1
 
         place_cell_spikes_over_time.append(place_spikes)
         instructive_signal_spikes_over_time.append(instructive_spikes)
