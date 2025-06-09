@@ -58,14 +58,40 @@ def create_movement_cells(num_movement_cells,
 
     return movement_cells
 
+def run_simulation():
+    pass
+
 def main():
-    num_steps_per_cycle = 100
+    # parameters for mouse path and place cells
+    num_steps_per_cycle = 5000
     num_cycles = 3
     num_place_cells = 50
     bounds = (-5, 5, -5, 5)
 
+    # Generate mouse path and place cells
     x_vals, y_vals = generate_mouse_path(num_steps_per_cycle, num_cycles)
     place_cells = create_place_cells(num_place_cells, bounds)
+
+    num_movement_cells = 15
+    num_test = 2
+    num_left = 3
+    num_right = 3
+    place_cell_ampa = 2.0 * nsiemens
+    instructive_signal_ampa = 8.0 * nsiemens
+    num_place_cell_connections = [10, 20] # per compartment
+    num_instructive_signal_connections = [5, 10] # per compartment
+    dt = 0.01 * ms
+
+    # Generate movement cells
+    movement_cells = create_movement_cells(num_movement_cells, 
+                                            place_cell_ampa, 
+                                            instructive_signal_ampa, 
+                                            dt,
+                                            num_place_cell_connections,
+                                            num_instructive_signal_connections,
+                                            num_test, 
+                                            num_left, 
+                                            num_right)
 
 if __name__ == '__main__':
     main()
