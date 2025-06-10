@@ -63,7 +63,7 @@ def two_compartments():
     place_total = sum(num_place_cell_connections)
     instructive_total = sum(num_instructive_signal_connections)
 
-    # === Define spike pattern (only for test compartments) ===
+    # === Define spike pattern (only for test compartments) === 
     place_spike_dict = {
         5000: [(2,)],
         7500: [(15,)]
