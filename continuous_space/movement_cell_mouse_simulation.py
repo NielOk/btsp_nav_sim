@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from brian2 import *
+from tqdm import tqdm
 
 from learnable_movement_cell import LearnableMovementCell
 from place_cell import PlaceCell
@@ -33,6 +34,7 @@ def create_place_cells(num_place_cells, bounds=(-5, 5, -5, 5)):
 
 def create_movement_cells(num_movement_cells, 
                           place_cell_ampa, 
+                          total_num_place_cells,
                           instructive_signal_ampa, 
                           dt,
                           num_place_cell_connections=[10, 15], 
@@ -49,6 +51,7 @@ def create_movement_cells(num_movement_cells,
                                      place_cell_ampa=place_cell_ampa,
                                      instructive_signal_ampa=instructive_signal_ampa,
                                      place_cell_connections=num_place_cell_connections,
+                                     total_num_place_cells=total_num_place_cells,
                                      instructive_signal_connections=num_instructive_signal_connections,
                                      num_left=num_left, 
                                      num_right=num_right,
@@ -58,8 +61,44 @@ def create_movement_cells(num_movement_cells,
 
     return movement_cells
 
-def run_simulation():
-    pass
+def get_place_spikes_over_time(place_cells, x_vals, y_vals, num_steps):
+    place_spikes_over_time = []
+
+    # Figure out place cell spikes
+    for t in range(num_steps):
+        x = x_vals[t]
+        y = y_vals[t]
+
+        place_spikes = np.zeros(len(place_cells), dtype=int)
+        
+        for i, pc in enumerate(place_cells):
+            if pc.fire_at(x, y):
+                place_spikes[i] = 1
+
+        place_spikes_over_time.append(place_spikes)
+
+    return place_spikes_over_time
+
+def run_simulation(place_cells, movement_cells, x_vals, y_vals, instructive_signal_probability=0.005):
+    num_steps = len(x_vals)# buffer steps to allow for settling of learning at end
+    
+    instructive_spikes_over_time = [] # This is randomly generated based on probability
+
+    place_spikes_over_time = get_place_spikes_over_time(place_cells, x_vals, y_vals, num_steps)
+
+    # Send in place cell spikes and instructive signal spikes to movement cells
+    for t in tqdm(range(num_steps)):
+        place_spikes = place_spikes_over_time[t]
+
+        for mc in movement_cells:
+            mc_place_spikes = place_spikes[mc.place_cell_indices]
+            
+            # One spike per instructive connection, with independent probability
+            mc_signal_spikes = (np.random.rand(len(mc.signal_map)) < instructive_signal_probability).astype(int)
+
+            mc.receive_spikes(mc_place_spikes, mc_signal_spikes)
+            mc.update()
+            mc.apply_ampa_learning(learning_rate=7e-3, nmda_openness_threshold=0.7)
 
 def main():
     # parameters for mouse path and place cells
@@ -80,11 +119,12 @@ def main():
     instructive_signal_ampa = 8.0 * nsiemens
     num_place_cell_connections = [10, 20] # per compartment
     num_instructive_signal_connections = [5, 10] # per compartment
-    dt = 0.01 * ms
+    dt = 0.001 * ms
 
     # Generate movement cells
     movement_cells = create_movement_cells(num_movement_cells, 
                                             place_cell_ampa, 
+                                            len(place_cells),
                                             instructive_signal_ampa, 
                                             dt,
                                             num_place_cell_connections,
@@ -92,6 +132,9 @@ def main():
                                             num_test, 
                                             num_left, 
                                             num_right)
+    
+    instructive_signal_probability = 0.005 # per step probability of firing
+    run_simulation(place_cells, movement_cells, x_vals, y_vals, instructive_signal_probability)
 
 if __name__ == '__main__':
     main()
