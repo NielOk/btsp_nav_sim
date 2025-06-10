@@ -8,7 +8,7 @@ from place_cell import PlaceCell
 
 import numpy as np
 
-def generate_mouse_path(num_steps_per_cycle, num_cycles):
+def generate_mouse_path(num_steps_per_cycle, num_cycles, scale=4.0):
     """
     Generate an infinity-sign (lemniscate) shaped path for the mouse to follow.
     """
@@ -17,6 +17,9 @@ def generate_mouse_path(num_steps_per_cycle, num_cycles):
 
     x_vals = np.cos(ts)
     y_vals = np.sin(ts) * np.cos(ts)
+
+    x_vals *= scale
+    y_vals *= scale
 
     return x_vals, y_vals
 
@@ -79,7 +82,7 @@ def get_place_spikes_over_time(place_cells, x_vals, y_vals, num_steps):
 
     return place_spikes_over_time
 
-def run_simulation(place_cells, movement_cells, x_vals, y_vals, instructive_signal_probability=0.005):
+def run_simulation(place_cells, movement_cells, x_vals, y_vals, instructive_signal_probability=0.005, buffer_steps=500):
     num_steps = len(x_vals)# buffer steps to allow for settling of learning at end
     
     instructive_spikes_over_time = [] # This is randomly generated based on probability
@@ -100,15 +103,52 @@ def run_simulation(place_cells, movement_cells, x_vals, y_vals, instructive_sign
             mc.update()
             mc.apply_ampa_learning(learning_rate=7e-3, nmda_openness_threshold=0.7)
 
+    # Additional buffer steps to allow for settling of learning
+    for t in tqdm(range(buffer_steps)):
+        for mc in movement_cells:
+            mc.update()
+            mc.apply_ampa_learning(learning_rate=7e-3, nmda_openness_threshold=0.7)
+
+    return movement_cells
+
+def plot_place_cells_and_path(place_cells, x_path, y_path, bounds=(-5, 5, -5, 5), resolution=300):
+    x_vals = np.linspace(bounds[0], bounds[1], resolution)
+    y_vals = np.linspace(bounds[2], bounds[3], resolution)
+    X, Y = np.meshgrid(x_vals, y_vals)
+
+    # Place cell activation map
+    place_Z = np.zeros_like(X)
+    for pc in place_cells:
+        place_Z += np.exp(-((X - pc.center_x) ** 2 + (Y - pc.center_y) ** 2) / (2 * pc.standard_deviation ** 2))
+
+    fig, ax = plt.subplots(figsize=(18, 6))
+    ax.set_xlim(bounds[0], bounds[1])
+    ax.set_ylim(bounds[2], bounds[3])
+    ax.set_aspect('equal')
+
+    ax.contourf(X, Y, place_Z, levels=50, cmap='Blues')
+    ax.set_title("Place Cell Firing Probability")
+    ax.plot(x_path, y_path, 'r--', label='Mouse Path')
+    ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+def plot_movement_cell_activity(movement_cells, x_vals, y_vals):
+    num_steps = len(x_vals)
+
+
+
 def main():
     # parameters for mouse path and place cells
     num_steps_per_cycle = 5000
-    num_cycles = 3
+    num_cycles = 1
     num_place_cells = 50
     bounds = (-5, 5, -5, 5)
+    mouse_path_scale = 4.0
 
     # Generate mouse path and place cells
-    x_vals, y_vals = generate_mouse_path(num_steps_per_cycle, num_cycles)
+    x_vals, y_vals = generate_mouse_path(num_steps_per_cycle, num_cycles, scale=mouse_path_scale)
     place_cells = create_place_cells(num_place_cells, bounds)
 
     num_movement_cells = 15
@@ -133,8 +173,21 @@ def main():
                                             num_left, 
                                             num_right)
     
+    for mc in movement_cells:
+        print(mc.place_cell_g_acts)
+    
     instructive_signal_probability = 0.005 # per step probability of firing
-    run_simulation(place_cells, movement_cells, x_vals, y_vals, instructive_signal_probability)
+    buffer_steps = 500
+    movement_cells = run_simulation(place_cells, movement_cells, x_vals, y_vals, instructive_signal_probability, buffer_steps)
+
+    for mc in movement_cells:
+        print(mc.place_cell_g_acts)
+
+    # Plot place cells and mouse path
+    plot_place_cells_and_path(place_cells, x_vals, y_vals, bounds)
+
+    # Plot activity of movement cells
+
 
 if __name__ == '__main__':
     main()
