@@ -59,7 +59,7 @@ class LearnableMovementCell:
         self.g_NMDA_act_max = 18.523 * nS
 
         self.tau_AMPA = 1.0 * ms
-        self.nmda_duration = 500.0 * ms
+        self.nmda_duration = 5.0 * ms
         self.nmda_timer_place = np.zeros(len(self.place_cell_map)) * ms
 
         self.nmda_vh = -23.7

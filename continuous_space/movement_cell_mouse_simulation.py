@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from brian2 import *
 from tqdm import tqdm
+import pickle
 
 from learnable_movement_cell import LearnableMovementCell
 from place_cell import PlaceCell
@@ -101,13 +102,13 @@ def run_simulation(place_cells, movement_cells, x_vals, y_vals, instructive_sign
 
             mc.receive_spikes(mc_place_spikes, mc_signal_spikes)
             mc.update()
-            mc.apply_ampa_learning(learning_rate=7e-3, nmda_openness_threshold=0.7)
+            mc.apply_ampa_learning(learning_rate=7e-1, nmda_openness_threshold=0.7)
 
     # Additional buffer steps to allow for settling of learning
     for t in tqdm(range(buffer_steps)):
         for mc in movement_cells:
             mc.update()
-            mc.apply_ampa_learning(learning_rate=7e-3, nmda_openness_threshold=0.7)
+            mc.apply_ampa_learning(learning_rate=7e-1, nmda_openness_threshold=0.7)
 
     return movement_cells
 
@@ -137,13 +138,14 @@ def plot_place_cells_and_path(place_cells, x_path, y_path, bounds=(-5, 5, -5, 5)
 def plot_movement_cell_activity(movement_cells, x_vals, y_vals):
     num_steps = len(x_vals)
 
+    for mc in movement_cells:
+        continue
 
-
-def main():
+def experiment(movement_cell_data_save_path, place_cells_data_save_path):
     # parameters for mouse path and place cells
-    num_steps_per_cycle = 5000
+    num_steps_per_cycle = 10000
     num_cycles = 1
-    num_place_cells = 50
+    num_place_cells = 100
     bounds = (-5, 5, -5, 5)
     mouse_path_scale = 4.0
 
@@ -159,7 +161,10 @@ def main():
     instructive_signal_ampa = 8.0 * nsiemens
     num_place_cell_connections = [10, 20] # per compartment
     num_instructive_signal_connections = [5, 10] # per compartment
-    dt = 0.001 * ms
+    dt = 0.01 * ms
+
+    per_cycle_time = num_steps_per_cycle * dt
+    print(f"One cycle takes {per_cycle_time} seconds.") 
 
     # Generate movement cells
     movement_cells = create_movement_cells(num_movement_cells, 
@@ -176,7 +181,7 @@ def main():
     for mc in movement_cells:
         print(mc.place_cell_g_acts)
     
-    instructive_signal_probability = 0.005 # per step probability of firing
+    instructive_signal_probability = 0.0005 # per step probability of firing
     buffer_steps = 500
     movement_cells = run_simulation(place_cells, movement_cells, x_vals, y_vals, instructive_signal_probability, buffer_steps)
 
@@ -186,8 +191,16 @@ def main():
     # Plot place cells and mouse path
     plot_place_cells_and_path(place_cells, x_vals, y_vals, bounds)
 
-    # Plot activity of movement cells
+    # Save the movement cells and place cells to files.
+    with open(movement_cell_data_save_path, 'wb') as f:
+        pickle.dump(movement_cells, f)
+    with open(place_cells_data_save_path, 'wb') as f:
+        pickle.dump(place_cells, f)
 
+def main():
+    movement_cell_data_save_path = "movement_cells.pkl"
+    place_cells_data_save_path = "place_cells.pkl"
+    experiment(movement_cell_data_save_path, place_cells_data_save_path)
 
 if __name__ == '__main__':
     main()
