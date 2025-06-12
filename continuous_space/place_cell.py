@@ -26,7 +26,7 @@ class PlaceCell():
         probability_fire = self.gaussian_firing(x, y)
 
         # Sample from a uniform distribution to determine if the cell fires
-        if np.random.uniform(0, 1) < probability_fire:
+        if np.random.uniform(0, 1) < probability_fire / 100.0:
             return True
         else:
             return False

@@ -13,7 +13,7 @@ class LearnableMovementCell:
     def __init__(self, num_test, place_cell_ampa, instructive_signal_ampa, 
                  place_cell_connections, total_num_place_cells, 
                  instructive_signal_connections,
-                 num_left=1, num_right=1, dt=0.1, C=1.0*uF/cm**2):
+                 num_left=1, num_right=1, dt=0.1, C=0.1*uF/cm**2):
         
         assert len(place_cell_connections) == num_test
         assert len(instructive_signal_connections) == num_test
@@ -22,6 +22,8 @@ class LearnableMovementCell:
         for num_conns in place_cell_connections:
             sampled = np.random.choice(total_num_place_cells, num_conns, replace=False)
             self.place_cell_indices.extend(sampled.tolist())
+
+        print(self.place_cell_indices)
 
         self.num_test = num_test
         self.num_left = num_left
@@ -51,6 +53,8 @@ class LearnableMovementCell:
         self.g_AMPA_place = np.zeros(len(self.place_cell_map)) * nS
         self.g_NMDA_place = np.zeros(len(self.place_cell_map)) * nS
 
+        self.g_AMPA_signal = np.zeros(len(self.signal_map)) * nS
+
         self.place_cell_g_acts = np.full(len(self.place_cell_map), place_cell_ampa) * siemens
 
         self.g_AMPA_act_signal = instructive_signal_ampa
@@ -58,8 +62,8 @@ class LearnableMovementCell:
         self.g_AMPA_learned_max = 10.0 * nS
         self.g_NMDA_act_max = 18.523 * nS
 
-        self.tau_AMPA = 1.0 * ms
-        self.nmda_duration = 5.0 * ms
+        self.tau_AMPA = .1 * ms
+        self.nmda_duration = 15 * ms
         self.nmda_timer_place = np.zeros(len(self.place_cell_map)) * ms
 
         self.nmda_vh = -23.7
@@ -83,7 +87,7 @@ class LearnableMovementCell:
         # Instructive signal is pure AMPA
         for i, spike in enumerate(signal_spikes):
             if spike:
-                self.g_AMPA_place[i] = min(self.g_AMPA_place[i] + self.g_AMPA_act_signal, self.g_AMPA_learned_max)
+                self.g_AMPA_signal[i] = min(self.g_AMPA_signal[i] + self.g_AMPA_act_signal, self.g_AMPA_learned_max)
         
     def update(self):
         V_mV = self.V / mV
@@ -100,6 +104,9 @@ class LearnableMovementCell:
         for i, comp in enumerate(self.place_cell_map):
             g_AMPA_comp[comp] += self.g_AMPA_place[i]
             g_NMDA_comp[comp] += self.g_NMDA_place[i] * nmda_openness[comp]
+
+        for i, comp in enumerate(self.signal_map):
+            g_AMPA_comp[comp] += self.g_AMPA_signal[i]
 
         # Keep left sides at plateau
         g_AMPA_comp[0:self.num_left] = self.g_AMPA_act_max
@@ -127,6 +134,7 @@ class LearnableMovementCell:
         self.V += self.dt * dVdt
     
         self.g_AMPA_place -= self.dt * self.g_AMPA_place / self.tau_AMPA
+        self.g_AMPA_signal -= self.dt * self.g_AMPA_signal / self.tau_AMPA
 
         self.nmda_timer_place -= self.dt
         self.g_NMDA_place[self.nmda_timer_place <= 0 * ms] = 0.0 * nS
@@ -154,10 +162,15 @@ class LearnableMovementCell:
             self.update()
             self.apply_ampa_learning(learning_rate=3e-3, nmda_openness_threshold=0.7)
 
-            if t == 5000 or t == 10000 or t == 24999:
-                print(f"Time step {t}: V = {self.V}")
-                print(f"AMPA weights: {self.place_cell_g_acts}")
-                print(f"NMDA conductances: {self.g_NMDA_place}")
+            if t == 5050 or t == 5300:
+                print(self.V)
 
     def get_voltage_trace(self):
         return np.array(self.V_trace)
+    
+    def reset_state(self):
+        self.V = np.ones(self.N) * -70.0 * mV
+        self.g_AMPA_place *= 0.0
+        self.g_NMDA_place *= 0.0
+        self.nmda_timer_place *= 0.0
+        self.V_trace = []

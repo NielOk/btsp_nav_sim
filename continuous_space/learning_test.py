@@ -11,6 +11,7 @@ def run_simulation(num_test, place_cell_ampa, instructive_signal_ampa, num_place
                                  place_cell_ampa=place_cell_ampa,
                                  instructive_signal_ampa=instructive_signal_ampa,
                                  place_cell_connections=num_place_cell_connections,
+                                 total_num_place_cells=sum(num_place_cell_connections),
                                  instructive_signal_connections=num_instructive_signal_connections,
                                  num_left=num_left, 
                                  num_right=num_right, 
@@ -50,8 +51,8 @@ def two_compartments():
     num_test = 2
     num_left = 3
     num_right = 3
-    steps = 50000
-    dt = 0.01 * ms
+    steps = 10000
+    dt = 0.001 * ms
 
     # === Define connections ===
     place_cell_ampa = 2.0 * nsiemens
@@ -65,12 +66,12 @@ def two_compartments():
 
     # === Define spike pattern (only for test compartments) === 
     place_spike_dict = {
-        5000: [(2,)],
-        7500: [(15,)]
+        5000: [(15,)],
+        5140: [(2,)]
     }
     instructive_spike_dict = {
-        5500: [(2,)],
-        7500: [(12,)]
+        5000: [(12,)], 
+        5140: [(2,)]
     }
 
     place_cell_spikes_over_time = []
